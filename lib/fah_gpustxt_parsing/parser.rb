@@ -16,12 +16,29 @@ class Parser
   # @return [Array<FAHGPUstxtParsing::GPU>]
   attr_reader :gpus
 
-  # @param location [String] location of raw GPUs.txt
-  def initialize(location = GPUSTXT_URL, options = {})
-    @location = location.to_s.freeze || GPUSTXT_URL
+  # @param [String] optional; location of raw GPUs.txt
+  # @param [Hash] optional; options
+  def initialize(*args)
+    options = {}
+
+    args[0...2].each do |a|
+      if a.is_a? Hash
+        options = a
+      else
+        @location = args[0].to_s.freeze
+      end
+    end
+
+    @location ||= GPUSTXT_URL
     set options
   end
 
+  # Retrieves GPUs.txt as a string from the location
+  # specified for the parser.
+  #
+  # This method is idempotent.
+  #
+  # @return [String]
   def fetch
     @raw ||= (
       if File.exist?(@location)
@@ -36,10 +53,9 @@ class Parser
         end
       end
     ).freeze
-
-    nil
   end
 
+  # @return [Array<FAHGPUstxtParsing::GPU>]
   def parse
     fetch
 
@@ -52,9 +68,11 @@ class Parser
     # to it (outside of this class) exist.
     @raw = nil unless @options[:cache_raw]
 
-    @gpus = raw_lines.collect { |l| GPU.new(l) }.freeze
-
-    nil
+    @gpus = Array.new
+    while l = raw_lines.shift
+      @gpus << GPU.new(l)
+    end
+    @gpus.freeze
   end
 
   protected
